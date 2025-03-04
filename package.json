@@ -1,0 +1,52 @@
+{
+	"name": "chrome-cookie-decrypt",
+	"version": "0.0.1",
+	"description": "A utility for retrieving and decrypting Google Chrome cookies on macOS.",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"dev": "tsx --watch src/index.ts",
+		"build": "rm -rf dist && tsup src/index.ts --format esm --dts",
+		"build:watch": "rm -rf dist && tsup src/index.ts --watch --format esm --dts",
+		"release": "npm run build && npm publish"
+	},
+	"files": [
+		"dist"
+	],
+	"os": [
+		"darwin"
+	],
+	"keywords": [
+		"google",
+		"chrome",
+		"cookies",
+		"encrypted",
+		"curl",
+		"decrypt",
+		"encrypt",
+		"extract"
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/lacherogwu/chrome-cookie-decrypt.git"
+	},
+	"author": "LacheRo`",
+	"license": "MIT",
+	"type": "module",
+	"dependencies": {
+		"keytar": "^7.9.0"
+	},
+	"devDependencies": {
+		"@types/node": "^22.13.9",
+		"tsup": "^8.4.0",
+		"tsx": "^4.19.3",
+		"typescript": "^5.8.2"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}
