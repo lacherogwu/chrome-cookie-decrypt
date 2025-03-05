@@ -28,7 +28,6 @@ export async function getEncryptionKey(): Promise<Buffer> {
 			}
 		});
 
-		// Handle process errors (e.g., if the security command is not found)
 		securityProcess.on('error', err => {
 			reject(new Error(`Failed to spawn security process: ${err.message}`));
 		});

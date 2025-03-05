@@ -1,3 +1,6 @@
+// src/constants.ts
+var WINDOWS_EPOCH_TO_UNIX_EPOCH_SECONDS = 11644473600;
+
 // src/crypto.ts
 import crypto from "crypto";
 var AESCBC_SALT = "saltysalt";
@@ -24,7 +27,7 @@ async function decrypt(encryptedValue, password) {
     throw new Error(`Decrypted data block length is not a multiple of ${AESCBC_LENGTH}`);
   }
   const paddingLen = decrypted[decrypted.length - 1];
-  if (paddingLen > 16) {
+  if (paddingLen === void 0 || paddingLen > 16) {
     throw new Error(`Invalid last block padding length: ${paddingLen}`);
   }
   const value = decrypted.subarray(32, decrypted.length - paddingLen).toString();
@@ -37,7 +40,7 @@ import os from "node:os";
 var COOKIES_DB_PATH = `${os.homedir()}/Library/Application Support/Google/Chrome/Default/Cookies`;
 async function getRawCookies(domain) {
   let query = `
-		SELECT *, hex(encrypted_value) as encrypted_value
+		SELECT host_key, name, hex(encrypted_value) as encrypted_value, path, expires_utc, is_secure, is_httponly, samesite
 		FROM cookies
 		`;
   if (domain) {
@@ -59,7 +62,7 @@ function executeSQL(databasePath, query) {
     });
     ps.on("close", (code) => {
       if (code === 0) {
-        resolve(JSON.parse(data));
+        resolve(JSON.parse(data || "[]"));
       } else {
         reject(new Error(`sqlite3 exited with code ${code}: ${error}`));
       }
@@ -105,12 +108,16 @@ async function getCookies(domain) {
   const cookiesPromise = rawCookies.map(async (cookie) => {
     const encryptedValueBytes = Buffer.from(cookie.encrypted_value, "hex");
     const decryptedValue = await decrypt(encryptedValueBytes, CHROME_SAFE_STORAGE_PASSWORD);
+    let expires = cookie.expires_utc;
+    if (expires > 0) {
+      expires = Math.floor((cookie.expires_utc / 1e6 - WINDOWS_EPOCH_TO_UNIX_EPOCH_SECONDS) * 1e3);
+    }
     const sameSite = cookie.samesite === 0 ? "None" : cookie.samesite === 1 ? "Lax" : "Strict";
     return {
       domain: cookie.host_key,
       path: cookie.path,
       secure: cookie.is_secure === 1,
-      expires: cookie.expires_utc,
+      expires,
       name: cookie.name,
       value: decryptedValue,
       httpOnly: cookie.is_httponly === 1,

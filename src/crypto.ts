@@ -8,7 +8,6 @@ const AESCBC_LENGTH = 16;
 export async function decrypt(encryptedValue: Buffer, password: Buffer) {
 	const key = crypto.pbkdf2Sync(password, Buffer.from(AESCBC_SALT), AESCBC_ITERATIONS_MACOS, AESCBC_LENGTH, 'sha1');
 
-	// Check if the encrypted value is too short
 	if (encryptedValue.length < 3) {
 		throw new Error('Encrypted length less than 3');
 	}
@@ -21,14 +20,9 @@ export async function decrypt(encryptedValue: Buffer, password: Buffer) {
 
 	// Remove the 'v10' prefix
 	const ciphertext = encryptedValue.subarray(3);
-
-	// Create decipher
 	const decipher = crypto.createDecipheriv('aes-128-cbc', key, Buffer.from(AESCBC_IV));
-
-	// Disable automatic padding handling as we'll do it manually
 	decipher.setAutoPadding(false);
 
-	// Decrypt the data
 	let decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 
 	if (decrypted.length === 0) {
@@ -39,9 +33,8 @@ export async function decrypt(encryptedValue: Buffer, password: Buffer) {
 		throw new Error(`Decrypted data block length is not a multiple of ${AESCBC_LENGTH}`);
 	}
 
-	// Get padding length from the last byte
 	const paddingLen = decrypted[decrypted.length - 1];
-	if (paddingLen > 16) {
+	if (paddingLen === undefined || paddingLen > 16) {
 		throw new Error(`Invalid last block padding length: ${paddingLen}`);
 	}
 
