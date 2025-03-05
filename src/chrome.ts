@@ -38,5 +38,5 @@ export async function parseRawCookie(cookie: RawCookie, password: Buffer): Promi
 }
 
 function normalizeChromeTimestamp(timestamp: number) {
-	return Math.floor((timestamp / 1000000 - WINDOWS_EPOCH_TO_UNIX_EPOCH_SECONDS) * 1000);
+	return Math.floor((timestamp / 1e6 - WINDOWS_EPOCH_TO_UNIX_EPOCH_SECONDS) * 1000);
 }
