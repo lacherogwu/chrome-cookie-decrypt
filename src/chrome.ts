@@ -1,18 +1,8 @@
 import { decrypt } from './crypto';
 import type { RawCookie } from './database';
-
-const WINDOWS_EPOCH_TO_UNIX_EPOCH_SECONDS = 11644473600;
-
-export type Cookie = {
-	domain: string;
-	path: string;
-	secure: boolean;
-	expires: number;
-	name: string;
-	value: string;
-	httpOnly: boolean;
-	sameSite: 'None' | 'Lax' | 'Strict';
-};
+import { CHROME_USER_DATA_PATH, WINDOWS_EPOCH_TO_UNIX_EPOCH_SECONDS } from './constants';
+import fs from 'node:fs/promises';
+import type { Cookie } from './types';
 
 export async function parseRawCookie(cookie: RawCookie, password: Buffer): Promise<Cookie> {
 	const encryptedValueBytes = Buffer.from(cookie.encrypted_value, 'hex');
@@ -39,4 +29,13 @@ export async function parseRawCookie(cookie: RawCookie, password: Buffer): Promi
 
 function normalizeChromeTimestamp(timestamp: number) {
 	return Math.floor((timestamp / 1e6 - WINDOWS_EPOCH_TO_UNIX_EPOCH_SECONDS) * 1000);
+}
+
+export async function getLocalStateProfiles() {
+	const localStatePath = `${CHROME_USER_DATA_PATH}/Local State`;
+	const localStateData = await fs.readFile(localStatePath, 'utf8');
+	const localState = JSON.parse(localStateData);
+	const profiles = localState.profile.info_cache as Record<string, { name: string }>;
+
+	return profiles;
 }

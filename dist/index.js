@@ -1,8 +1,37 @@
 // src/database.ts
 import { spawn } from "node:child_process";
+
+// src/constants.ts
 import os from "node:os";
-var COOKIES_DB_PATH = `${os.homedir()}/Library/Application Support/Google/Chrome/Default/Cookies`;
-async function getRawCookies(domain) {
+var isMacOS = os.platform() === "darwin";
+var CHROME_USER_DATA_PATH = `${os.homedir()}/Library/Application Support/Google/Chrome`;
+var WINDOWS_EPOCH_TO_UNIX_EPOCH_SECONDS = 11644473600;
+
+// src/utils.ts
+import fs from "node:fs/promises";
+function assertChromeInstalled() {
+  if (!isMacOS) {
+    throw new Error("This module only works on macOS");
+  }
+}
+async function assertsChromeDirectoryAccess() {
+  assertChromeInstalled();
+  try {
+    await fs.access(CHROME_USER_DATA_PATH);
+  } catch (err) {
+    throw new Error("Chrome user data directory not found");
+  }
+}
+async function isProfileExists(profile = "Default") {
+  return fs.access(`${CHROME_USER_DATA_PATH}/${profile}`).then(() => true).catch(() => false);
+}
+
+// src/database.ts
+async function getRawCookies(domain, profile = "Default") {
+  if (!await isProfileExists(profile)) {
+    throw new Error(`Profile "${profile}" not found`);
+  }
+  const cookiesDbPath = getProfileCookiesDbPath(profile);
   let query = `
 		SELECT host_key, name, hex(encrypted_value) as encrypted_value, path, expires_utc, is_secure, is_httponly, samesite
 		FROM cookies
@@ -10,7 +39,7 @@ async function getRawCookies(domain) {
   if (domain) {
     query += `WHERE host_key LIKE '%${domain}'`;
   }
-  const rawCookies = await executeSQL(COOKIES_DB_PATH, query);
+  const rawCookies = await executeSQL(cookiesDbPath, query);
   return rawCookies;
 }
 function executeSQL(databasePath, query) {
@@ -32,6 +61,9 @@ function executeSQL(databasePath, query) {
       }
     });
   });
+}
+function getProfileCookiesDbPath(profile = "Default") {
+  return `${CHROME_USER_DATA_PATH}/${profile}/Cookies`;
 }
 
 // src/keychain.ts
@@ -99,7 +131,7 @@ async function decrypt(encryptedValue, password) {
 }
 
 // src/chrome.ts
-var WINDOWS_EPOCH_TO_UNIX_EPOCH_SECONDS = 11644473600;
+import fs2 from "node:fs/promises";
 async function parseRawCookie(cookie, password) {
   const encryptedValueBytes = Buffer.from(cookie.encrypted_value, "hex");
   const decryptedValue = await decrypt(encryptedValueBytes, password);
@@ -122,15 +154,30 @@ async function parseRawCookie(cookie, password) {
 function normalizeChromeTimestamp(timestamp) {
   return Math.floor((timestamp / 1e6 - WINDOWS_EPOCH_TO_UNIX_EPOCH_SECONDS) * 1e3);
 }
+async function getLocalStateProfiles() {
+  const localStatePath = `${CHROME_USER_DATA_PATH}/Local State`;
+  const localStateData = await fs2.readFile(localStatePath, "utf8");
+  const localState = JSON.parse(localStateData);
+  const profiles = localState.profile.info_cache;
+  return profiles;
+}
 
 // src/index.ts
-async function getCookies(domain) {
-  const rawCookies = await getRawCookies(domain);
+async function getCookies(domain, profile) {
+  assertChromeInstalled();
+  const rawCookies = await getRawCookies(domain, profile);
   const CHROME_SAFE_STORAGE_PASSWORD = await getEncryptionKey();
   const cookiesPromise = rawCookies.map(async (cookie) => await parseRawCookie(cookie, CHROME_SAFE_STORAGE_PASSWORD));
   const cookies = await Promise.all(cookiesPromise);
   return cookies;
 }
+async function getProfiles() {
+  await assertsChromeDirectoryAccess();
+  const localStateProfiles = await getLocalStateProfiles();
+  const profiles = Object.entries(localStateProfiles).map(([profile, { name }]) => ({ profile, name }));
+  return profiles;
+}
 export {
-  getCookies
+  getCookies,
+  getProfiles
 };

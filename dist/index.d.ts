@@ -9,6 +9,10 @@ type Cookie = {
     sameSite: 'None' | 'Lax' | 'Strict';
 };
 
-declare function getCookies(domain?: string): Promise<Cookie[]>;
+declare function getCookies(domain?: string, profile?: string): Promise<Cookie[]>;
+declare function getProfiles(): Promise<{
+    profile: string;
+    name: string;
+}[]>;
 
-export { type Cookie, getCookies };
+export { type Cookie, getCookies, getProfiles };

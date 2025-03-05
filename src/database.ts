@@ -1,20 +1,14 @@
 import { spawn } from 'node:child_process';
-import os from 'node:os';
+import { CHROME_USER_DATA_PATH } from './constants';
+import { isProfileExists } from './utils';
+import type { RawCookie } from './types';
 
-const COOKIES_DB_PATH = `${os.homedir()}/Library/Application Support/Google/Chrome/Default/Cookies`;
+export async function getRawCookies(domain?: string, profile = 'Default'): Promise<RawCookie[]> {
+	if (!(await isProfileExists(profile))) {
+		throw new Error(`Profile "${profile}" not found`);
+	}
+	const cookiesDbPath = getProfileCookiesDbPath(profile);
 
-export type RawCookie = {
-	host_key: string;
-	name: string;
-	encrypted_value: string;
-	path: string;
-	expires_utc: number;
-	is_secure: number;
-	is_httponly: number;
-	samesite: number;
-};
-
-export async function getRawCookies(domain?: string) {
 	let query = `
 		SELECT host_key, name, hex(encrypted_value) as encrypted_value, path, expires_utc, is_secure, is_httponly, samesite
 		FROM cookies
@@ -24,7 +18,7 @@ export async function getRawCookies(domain?: string) {
 		query += `WHERE host_key LIKE '%${domain}'`;
 	}
 
-	const rawCookies = await executeSQL<RawCookie>(COOKIES_DB_PATH, query);
+	const rawCookies = await executeSQL<RawCookie>(cookiesDbPath, query);
 	return rawCookies;
 }
 
@@ -51,4 +45,8 @@ function executeSQL<T = unknown>(databasePath: string, query: string): Promise<T
 			}
 		});
 	});
+}
+
+function getProfileCookiesDbPath(profile = 'Default'): string {
+	return `${CHROME_USER_DATA_PATH}/${profile}/Cookies`;
 }
