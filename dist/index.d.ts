@@ -8,11 +8,12 @@ type Cookie = {
     httpOnly: boolean;
     sameSite: 'None' | 'Lax' | 'Strict';
 };
+type Profile = {
+    directory: string;
+    displayName: string;
+};
 
 declare function getCookies(domain?: string, profile?: string): Promise<Cookie[]>;
-declare function getProfiles(): Promise<{
-    profile: string;
-    name: string;
-}[]>;
+declare function getProfiles(): Promise<Profile[]>;
 
-export { type Cookie, getCookies, getProfiles };
+export { type Cookie, type Profile, getCookies, getProfiles };

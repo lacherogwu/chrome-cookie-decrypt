@@ -174,7 +174,7 @@ async function getCookies(domain, profile) {
 async function getProfiles() {
   await assertsChromeDirectoryAccess();
   const localStateProfiles = await getLocalStateProfiles();
-  const profiles = Object.entries(localStateProfiles).map(([profile, { name }]) => ({ profile, name }));
+  const profiles = Object.entries(localStateProfiles).map(([directory, { name }]) => ({ directory, displayName: name }));
   return profiles;
 }
 export {
