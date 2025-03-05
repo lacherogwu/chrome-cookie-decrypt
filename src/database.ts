@@ -3,7 +3,7 @@ import os from 'node:os';
 
 const COOKIES_DB_PATH = `${os.homedir()}/Library/Application Support/Google/Chrome/Default/Cookies`;
 
-type RawCookie = {
+export type RawCookie = {
 	host_key: string;
 	name: string;
 	encrypted_value: string;
