@@ -19,3 +19,8 @@ export type RawCookie = {
 	is_httponly: number;
 	samesite: number;
 };
+
+export type Profile = {
+	directory: string;
+	displayName: string;
+};

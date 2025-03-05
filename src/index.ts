@@ -2,8 +2,8 @@ import { getRawCookies } from './database';
 import { getEncryptionKey } from './keychain';
 import { parseRawCookie, getLocalStateProfiles } from './chrome';
 import { assertChromeInstalled, assertsChromeDirectoryAccess } from './utils';
-import type { Cookie } from './types';
-export type { Cookie } from './types';
+import type { Cookie, Profile } from './types';
+export type { Cookie, Profile } from './types';
 
 export async function getCookies(domain?: string, profile?: string): Promise<Cookie[]> {
 	assertChromeInstalled();
@@ -17,10 +17,11 @@ export async function getCookies(domain?: string, profile?: string): Promise<Coo
 	return cookies;
 }
 
-export async function getProfiles() {
+export async function getProfiles(): Promise<Profile[]> {
 	await assertsChromeDirectoryAccess();
 
 	const localStateProfiles = await getLocalStateProfiles();
-	const profiles = Object.entries(localStateProfiles).map(([profile, { name }]) => ({ profile, name }));
+	const profiles = Object.entries(localStateProfiles).map(([directory, { name }]) => ({ directory, displayName: name }));
+
 	return profiles;
 }
