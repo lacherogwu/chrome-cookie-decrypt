@@ -8,6 +8,7 @@ type Cookie = {
     httpOnly: boolean;
     sameSite: 'None' | 'Lax' | 'Strict';
 };
+
 declare function getCookies(domain?: string): Promise<Cookie[]>;
 
 export { type Cookie, getCookies };

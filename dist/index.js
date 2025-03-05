@@ -1,39 +1,3 @@
-// src/constants.ts
-var WINDOWS_EPOCH_TO_UNIX_EPOCH_SECONDS = 11644473600;
-
-// src/crypto.ts
-import crypto from "crypto";
-var AESCBC_SALT = "saltysalt";
-var AESCBC_IV = " ".repeat(16);
-var AESCBC_ITERATIONS_MACOS = 1003;
-var AESCBC_LENGTH = 16;
-async function decrypt(encryptedValue, password) {
-  const key = crypto.pbkdf2Sync(password, Buffer.from(AESCBC_SALT), AESCBC_ITERATIONS_MACOS, AESCBC_LENGTH, "sha1");
-  if (encryptedValue.length < 3) {
-    throw new Error("Encrypted length less than 3");
-  }
-  const version = encryptedValue.subarray(0, 3).toString();
-  if (version !== "v10") {
-    throw new Error(`Unsupported encrypted value version: ${version}`);
-  }
-  const ciphertext = encryptedValue.subarray(3);
-  const decipher = crypto.createDecipheriv("aes-128-cbc", key, Buffer.from(AESCBC_IV));
-  decipher.setAutoPadding(false);
-  let decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-  if (decrypted.length === 0) {
-    throw new Error("Not enough bits");
-  }
-  if (decrypted.length % AESCBC_LENGTH !== 0) {
-    throw new Error(`Decrypted data block length is not a multiple of ${AESCBC_LENGTH}`);
-  }
-  const paddingLen = decrypted[decrypted.length - 1];
-  if (paddingLen === void 0 || paddingLen > 16) {
-    throw new Error(`Invalid last block padding length: ${paddingLen}`);
-  }
-  const value = decrypted.subarray(32, decrypted.length - paddingLen).toString();
-  return value;
-}
-
 // src/database.ts
 import { spawn } from "node:child_process";
 import os from "node:os";
@@ -101,29 +65,69 @@ async function getEncryptionKey() {
   });
 }
 
+// src/crypto.ts
+import crypto from "crypto";
+var AESCBC_SALT = "saltysalt";
+var AESCBC_IV = " ".repeat(16);
+var AESCBC_ITERATIONS_MACOS = 1003;
+var AESCBC_LENGTH = 16;
+async function decrypt(encryptedValue, password) {
+  const key = crypto.pbkdf2Sync(password, Buffer.from(AESCBC_SALT), AESCBC_ITERATIONS_MACOS, AESCBC_LENGTH, "sha1");
+  if (encryptedValue.length < 3) {
+    throw new Error("Encrypted length less than 3");
+  }
+  const version = encryptedValue.subarray(0, 3).toString();
+  if (version !== "v10") {
+    throw new Error(`Unsupported encrypted value version: ${version}`);
+  }
+  const ciphertext = encryptedValue.subarray(3);
+  const decipher = crypto.createDecipheriv("aes-128-cbc", key, Buffer.from(AESCBC_IV));
+  decipher.setAutoPadding(false);
+  let decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  if (decrypted.length === 0) {
+    throw new Error("Not enough bits");
+  }
+  if (decrypted.length % AESCBC_LENGTH !== 0) {
+    throw new Error(`Decrypted data block length is not a multiple of ${AESCBC_LENGTH}`);
+  }
+  const paddingLen = decrypted[decrypted.length - 1];
+  if (paddingLen === void 0 || paddingLen > 16) {
+    throw new Error(`Invalid last block padding length: ${paddingLen}`);
+  }
+  const value = decrypted.subarray(32, decrypted.length - paddingLen).toString();
+  return value;
+}
+
+// src/chrome.ts
+var WINDOWS_EPOCH_TO_UNIX_EPOCH_SECONDS = 11644473600;
+async function parseRawCookie(cookie, password) {
+  const encryptedValueBytes = Buffer.from(cookie.encrypted_value, "hex");
+  const decryptedValue = await decrypt(encryptedValueBytes, password);
+  let expires = cookie.expires_utc;
+  if (expires > 0) {
+    expires = normalizeChromeTimestamp(cookie.expires_utc);
+  }
+  const sameSite = cookie.samesite === 0 ? "None" : cookie.samesite === 1 ? "Lax" : "Strict";
+  return {
+    domain: cookie.host_key,
+    path: cookie.path,
+    secure: cookie.is_secure === 1,
+    expires,
+    name: cookie.name,
+    value: decryptedValue,
+    httpOnly: cookie.is_httponly === 1,
+    sameSite
+  };
+}
+function normalizeChromeTimestamp(timestamp) {
+  return Math.floor((timestamp / 1e6 - WINDOWS_EPOCH_TO_UNIX_EPOCH_SECONDS) * 1e3);
+}
+
 // src/index.ts
 async function getCookies(domain) {
   const rawCookies = await getRawCookies(domain);
   const CHROME_SAFE_STORAGE_PASSWORD = await getEncryptionKey();
-  const cookiesPromise = rawCookies.map(async (cookie) => {
-    const encryptedValueBytes = Buffer.from(cookie.encrypted_value, "hex");
-    const decryptedValue = await decrypt(encryptedValueBytes, CHROME_SAFE_STORAGE_PASSWORD);
-    let expires = cookie.expires_utc;
-    if (expires > 0) {
-      expires = Math.floor((cookie.expires_utc / 1e6 - WINDOWS_EPOCH_TO_UNIX_EPOCH_SECONDS) * 1e3);
-    }
-    const sameSite = cookie.samesite === 0 ? "None" : cookie.samesite === 1 ? "Lax" : "Strict";
-    return {
-      domain: cookie.host_key,
-      path: cookie.path,
-      secure: cookie.is_secure === 1,
-      expires,
-      name: cookie.name,
-      value: decryptedValue,
-      httpOnly: cookie.is_httponly === 1,
-      sameSite
-    };
-  });
+  const cookiesPromise = rawCookies.map(async (cookie) => await parseRawCookie(cookie, CHROME_SAFE_STORAGE_PASSWORD));
   const cookies = await Promise.all(cookiesPromise);
   return cookies;
 }
