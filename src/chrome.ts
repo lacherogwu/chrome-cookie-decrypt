@@ -1,12 +1,12 @@
 import { decrypt } from './crypto';
-import type { RawCookie } from './database';
+import type { RawCookie } from './types';
 import { CHROME_USER_DATA_PATH, WINDOWS_EPOCH_TO_UNIX_EPOCH_SECONDS } from './constants';
 import fs from 'node:fs/promises';
 import type { Cookie } from './types';
 
-export async function parseRawCookie(cookie: RawCookie, password: Buffer): Promise<Cookie> {
+export function parseRawCookie(cookie: RawCookie, password: string): Cookie {
 	const encryptedValueBytes = Buffer.from(cookie.encrypted_value, 'hex');
-	const decryptedValue = await decrypt(encryptedValueBytes, password);
+	const decryptedValue = decrypt(encryptedValueBytes, password);
 
 	let expires = cookie.expires_utc;
 	if (expires > 0) {

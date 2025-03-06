@@ -83,7 +83,7 @@ async function getEncryptionKey() {
       if (code === 0) {
         const trimmedPassword = password.trim();
         if (trimmedPassword) {
-          resolve(Buffer.from(trimmedPassword, "utf-8"));
+          resolve(trimmedPassword);
         } else {
           reject(new Error("Chrome Safe Storage password not found"));
         }
@@ -103,7 +103,7 @@ var AESCBC_SALT = "saltysalt";
 var AESCBC_IV = " ".repeat(16);
 var AESCBC_ITERATIONS_MACOS = 1003;
 var AESCBC_LENGTH = 16;
-async function decrypt(encryptedValue, password) {
+function decrypt(encryptedValue, password) {
   const key = crypto.pbkdf2Sync(password, Buffer.from(AESCBC_SALT), AESCBC_ITERATIONS_MACOS, AESCBC_LENGTH, "sha1");
   if (encryptedValue.length < 3) {
     throw new Error("Encrypted length less than 3");
@@ -115,7 +115,7 @@ async function decrypt(encryptedValue, password) {
   const ciphertext = encryptedValue.subarray(3);
   const decipher = crypto.createDecipheriv("aes-128-cbc", key, Buffer.from(AESCBC_IV));
   decipher.setAutoPadding(false);
-  let decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
   if (decrypted.length === 0) {
     throw new Error("Not enough bits");
   }
@@ -132,9 +132,9 @@ async function decrypt(encryptedValue, password) {
 
 // src/chrome.ts
 import fs2 from "node:fs/promises";
-async function parseRawCookie(cookie, password) {
+function parseRawCookie(cookie, password) {
   const encryptedValueBytes = Buffer.from(cookie.encrypted_value, "hex");
-  const decryptedValue = await decrypt(encryptedValueBytes, password);
+  const decryptedValue = decrypt(encryptedValueBytes, password);
   let expires = cookie.expires_utc;
   if (expires > 0) {
     expires = normalizeChromeTimestamp(cookie.expires_utc);
@@ -166,9 +166,8 @@ async function getLocalStateProfiles() {
 async function getCookies(domain, profile) {
   assertChromeInstalled();
   const rawCookies = await getRawCookies(domain, profile);
-  const CHROME_SAFE_STORAGE_PASSWORD = await getEncryptionKey();
-  const cookiesPromise = rawCookies.map(async (cookie) => await parseRawCookie(cookie, CHROME_SAFE_STORAGE_PASSWORD));
-  const cookies = await Promise.all(cookiesPromise);
+  const password = await getEncryptionKey();
+  const cookies = rawCookies.map((cookie) => parseRawCookie(cookie, password));
   return cookies;
 }
 async function getProfiles() {

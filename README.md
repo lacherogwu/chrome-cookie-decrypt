@@ -34,27 +34,48 @@ npm i https://github.com/lacherogwu/chrome-cookie-decrypt
 ## Usage
 
 ```typescript
-import { getCookies } from 'chrome-cookie-decrypt';
+import { getCookies, getProfiles } from 'chrome-cookie-decrypt';
 
-// Get all Chrome cookies
+// Get all Chrome cookies from the default profile
 const allCookies = await getCookies();
 console.log(allCookies);
 
 // Get cookies for a specific domain
 const googleCookies = await getCookies('google.com');
 console.log(googleCookies);
+
+// Get cookies for a specific domain from a specific profile
+const profileCookies = await getCookies('example.com', 'Profile 1');
+console.log(profileCookies);
+
+// Get all available Chrome profiles
+const profiles = await getProfiles();
+console.log(profiles);
+
+// Use profile information to get cookies for a specific profile
+const firstProfile = profiles[0];
+const profileCookies = await getCookies(undefined, firstProfile.directory);
+console.log(`Cookies for ${firstProfile.displayName}:`, profileCookies);
 ```
 
 ## API
 
-### `getCookies(domain?: string): Promise<Cookie[]>`
+### `getCookies(domain?: string, profile?: string): Promise<Cookie[]>`
 
 Retrieves and decrypts Chrome cookies.
 
 - **Parameters:**
   - `domain` (optional): Filter cookies by domain (e.g., 'google.com')
+  - `profile` (optional): Specify the Chrome profile to use (e.g., 'Profile 1')
 - **Returns:**
   - Promise resolving to an array of `Cookie` objects
+
+### `getProfiles(): Promise<Profile[]>`
+
+Retrieves all available Chrome profiles.
+
+- **Returns:**
+  - Promise resolving to an array of `Profile` objects
 
 ### Cookie Object
 
@@ -68,6 +89,15 @@ type Cookie = {
 	value: string; // Decrypted cookie value
 	httpOnly: boolean; // Whether the cookie is HTTP only
 	sameSite: 'None' | 'Lax' | 'Strict'; // SameSite policy
+};
+```
+
+### Profile Object
+
+```typescript
+type Profile = {
+	displayName: string; // Profile display name
+	directory: string; // Profile directory
 };
 ```
 

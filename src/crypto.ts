@@ -5,7 +5,7 @@ const AESCBC_IV = ' '.repeat(16);
 const AESCBC_ITERATIONS_MACOS = 1003;
 const AESCBC_LENGTH = 16;
 
-export async function decrypt(encryptedValue: Buffer, password: Buffer) {
+export function decrypt(encryptedValue: Buffer, password: string): string {
 	const key = crypto.pbkdf2Sync(password, Buffer.from(AESCBC_SALT), AESCBC_ITERATIONS_MACOS, AESCBC_LENGTH, 'sha1');
 
 	if (encryptedValue.length < 3) {
@@ -23,7 +23,7 @@ export async function decrypt(encryptedValue: Buffer, password: Buffer) {
 	const decipher = crypto.createDecipheriv('aes-128-cbc', key, Buffer.from(AESCBC_IV));
 	decipher.setAutoPadding(false);
 
-	let decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+	const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 
 	if (decrypted.length === 0) {
 		throw new Error('Not enough bits');

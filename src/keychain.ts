@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 
-export async function getEncryptionKey(): Promise<Buffer> {
+export async function getEncryptionKey(): Promise<string> {
 	return new Promise((resolve, reject) => {
 		const securityProcess = spawn('security', ['find-generic-password', '-s', 'Chrome Safe Storage', '-a', 'Chrome', '-w']);
 
@@ -19,7 +19,7 @@ export async function getEncryptionKey(): Promise<Buffer> {
 			if (code === 0) {
 				const trimmedPassword = password.trim();
 				if (trimmedPassword) {
-					resolve(Buffer.from(trimmedPassword, 'utf-8'));
+					resolve(trimmedPassword);
 				} else {
 					reject(new Error('Chrome Safe Storage password not found'));
 				}
