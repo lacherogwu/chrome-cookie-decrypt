@@ -3,6 +3,7 @@ import { getEncryptionKey } from './keychain';
 import { parseRawCookie, getLocalStateProfiles } from './chrome';
 import { assertChromeInstalled, assertsChromeDirectoryAccess } from './utils';
 import type { Cookie, Profile } from './types';
+
 export type { Cookie, Profile } from './types';
 
 /**

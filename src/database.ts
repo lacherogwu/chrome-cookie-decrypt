@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn } from 'exec-utils';
 import { CHROME_USER_DATA_PATH } from './constants';
 import { isProfileExists } from './utils';
 import type { RawCookie } from './types';
@@ -22,29 +22,13 @@ export async function getRawCookies(domain?: string, profile = 'Default'): Promi
 	return rawCookies;
 }
 
-function executeSQL<T = unknown>(databasePath: string, query: string): Promise<T[]> {
-	const ps = spawn('sqlite3', ['--json', '--readonly', databasePath, query]);
+async function executeSQL<T = unknown>(databasePath: string, query: string): Promise<T[]> {
+	const { data, error } = await spawn('sqlite3', ['--json', '--readonly', databasePath, query]);
+	if (error) {
+		throw new Error(`sqlite3 exited with code ${error.code}: ${error.message}`);
+	}
 
-	return new Promise((resolve, reject) => {
-		let data = '';
-		let error = '';
-
-		ps.stdout.on('data', chunk => {
-			data += chunk;
-		});
-
-		ps.stderr.on('data', chunk => {
-			error += chunk;
-		});
-
-		ps.on('close', code => {
-			if (code === 0) {
-				resolve(JSON.parse(data || '[]'));
-			} else {
-				reject(new Error(`sqlite3 exited with code ${code}: ${error}`));
-			}
-		});
-	});
+	return JSON.parse(data || '[]');
 }
 
 function getProfileCookiesDbPath(profile = 'Default'): string {
